@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EC2 인스턴스 목록</title>
+</head>
+<body>
+    <h1>EC2 인스턴스 목록</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>타입</th>
+                <th>상태</th>
+                <th>AMI</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for instance in instances %}
+                <tr>
+                    <td>{{ instance.id }}</td>
+                    <td>{{ instance.type }}</td>
+                    <td>{{ instance.state }}</td>
+                    <td>{{ instance.ami }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4">인스턴스가 없습니다.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
