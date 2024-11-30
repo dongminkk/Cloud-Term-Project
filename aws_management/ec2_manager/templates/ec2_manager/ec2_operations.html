@@ -4,79 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EC2 인스턴스 관리</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 </head>
 <body>
     <div class="container mt-5">
-        <h1>EC2 인스턴스 관리</h1>
+        <h1 class="mb-4">EC2 인스턴스 관리</h1>
 
         {% if message %}
-            <div class="alert alert-info">{{ message }}</div>
+            <div class="alert alert-info">
+                {{ message }}
+            </div>
         {% endif %}
 
-        <form method="POST">
-            {% csrf_token %}
-            <div class="mb-3">
-                <label for="instance_id" class="form-label">인스턴스 ID</label>
-                <input type="text" class="form-control" id="instance_id" name="instance_id" placeholder="예: i-0abcd1234efgh5678" required>
+        <!-- 작업 폼 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">작업 실행</h3>
             </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="instance_id" class="form-label">인스턴스 ID</label>
+                        <input type="text" class="form-control" id="instance_id" name="instance_id" placeholder="예: i-0abcd1234efgh5678" required>
+                    </div>
 
-            <div class="mb-3">
-                <label for="tag_key" class="form-label">태그 키 (옵션)</label>
-                <input type="text" class="form-control" id="tag_key" name="tag_key" placeholder="예: Name">
+                    <div class="mb-3">
+                        <label for="tag_key" class="form-label">태그 키 (옵션)</label>
+                        <input type="text" class="form-control" id="tag_key" name="tag_key" placeholder="예: Name">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="tag_value" class="form-label">태그 값 (옵션)</label>
+                        <input type="text" class="form-control" id="tag_value" name="tag_value" placeholder="예: MyInstance">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="action" class="form-label">작업 선택</label>
+                        <select class="form-select" id="action" name="action" required>
+                            <option value="start">시작</option>
+                            <option value="stop">중지</option>
+                            <option value="terminate">종료</option>
+                            <option value="status">상태 조회</option>
+                            <option value="tag">태그 추가</option>
+                            <option value="monitor">모니터링 시작</option>
+                            <option value="unmonitor">모니터링 중지</option>
+                            <option value="allocate_ip">Elastic IP 할당</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">작업 실행</button>
+                </form>
             </div>
+        </div>
 
-            <div class="mb-3">
-                <label for="tag_value" class="form-label">태그 값 (옵션)</label>
-                <input type="text" class="form-control" id="tag_value" name="tag_value" placeholder="예: MyInstance">
+        <!-- 인스턴스 목록 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">인스턴스 목록</h3>
             </div>
-
-            <div class="mb-3">
-                <label for="action" class="form-label">작업 선택</label>
-                <select class="form-select" id="action" name="action" required>
-                    <option value="start">시작</option>
-                    <option value="stop">중지</option>
-                    <option value="terminate">삭제</option>
-                    <option value="status">상태 조회</option>
-                    <option value="tag">태그 추가</option>
-                    <option value="monitor">모니터링 시작</option>
-                    <option value="unmonitor">모니터링 중지</option>
-                    <option value="allocate_ip">Elastic IP 할당</option>
-                </select>
-            </div>
-
-            <button type="submit" class="btn btn-primary">작업 실행</button>
-        </form>
-
-        <div class="mt-4">
-            <h3>EC2 인스턴스 목록</h3>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th scope="col">인스턴스 ID</th>
-                        <th scope="col">타입</th>
-                        <th scope="col">상태</th>
-                        <th scope="col">AMI</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for instance in instances %}
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
                         <tr>
-                            <td>{{ instance.id }}</td>
-                            <td>{{ instance.type }}</td>
-                            <td>{{ instance.state }}</td>
-                            <td>{{ instance.ami }}</td>
+                            <th scope="col">인스턴스 ID</th>
+                            <th scope="col">타입</th>
+                            <th scope="col">상태</th>
+                            <th scope="col">AMI</th>
+                            <th scope="col">퍼블릭 IP</th>
+                            <th scope="col">프라이빗 IP</th>
+                            <th scope="col">시작 시간</th>
                         </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="4">현재 EC2 인스턴스가 없습니다.</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for instance in instances %}
+                            <tr>
+                                <td>{{ instance.id }}</td>
+                                <td>{{ instance.type }}</td>
+                                <td>{{ instance.state }}</td>
+                                <td>{{ instance.ami }}</td>
+                                <td>{{ instance.public_ip }}</td>
+                                <td>{{ instance.private_ip }}</td>
+                                <td>{{ instance.launch_time }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">현재 활성화된 인스턴스가 없습니다.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
