@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이미지 조회 및 인스턴스 생성</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">이미지 조회 및 EC2 인스턴스 생성</h1>
+
+        {% if message %}
+            <div class="alert alert-info">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">이미지 목록</h3>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th scope="col">이미지 ID</th>
+                            <th scope="col">이름</th>
+                            <th scope="col">소유자</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for image in images %}
+                            <tr>
+                                <td>{{ image.image_id }}</td>
+                                <td>{{ image.name }}</td>
+                                <td>{{ image.owner }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center">조회된 이미지가 없습니다.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">인스턴스 생성</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="ami_id" class="form-label">AMI ID</label>
+                        <select class="form-select" id="ami_id" name="ami_id" required>
+                            {% for image in images %}
+                                <option value="{{ image.image_id }}">{{ image.name }} (ID: {{ image.image_id }})</option>
+                            {% empty %}
+                                <option disabled>이미지가 없습니다.</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">인스턴스 생성</button>
+                </form>
+            </div>
+        </div>
+        <a href="{% url 'ec2_operations' %}" class="btn btn-primary mt-4">EC2 인스턴스 관리 페이지로 돌아가기</a>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

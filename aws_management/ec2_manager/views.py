@@ -31,7 +31,8 @@ def ec2_operations(request):
                 "ami": i["ImageId"],
                 "public_ip": i.get("PublicIpAddress", "N/A"),  # 퍼블릭 IP가 없는 경우 처리
                 "private_ip": i.get("PrivateIpAddress", "N/A"),  # 프라이빗 IP가 없는 경우 처리
-                "launch_time": i["LaunchTime"].strftime("%Y-%m-%d %H:%M:%S")  # 날짜 형식 지정
+                "launch_time": i["LaunchTime"].strftime("%Y-%m-%d %H:%M:%S"),  # 날짜 형식 지정
+                "tags": {tag["Key"]: tag["Value"] for tag in i.get("Tags", [])}  # 태그 조회
             }
             for r in response.get("Reservations", [])
             for i in r.get("Instances", [])
@@ -68,6 +69,7 @@ def ec2_operations(request):
             message = f"Elastic IP: {ip}"
 
     return render(request, "ec2_manager/ec2_operations.html", {"message": message, "instances": instances})
+
 
 
 
@@ -157,3 +159,90 @@ def stop_instance(ec2, instance_id):
     except Exception as e:
         print(f"Error stopping instance: {str(e)}")
         return False, f"Error stopping instance: {str(e)}"
+    
+def reboot_instance(ec2, instance_id):
+    print(f"Rebooting instance {instance_id}...")
+    try:
+        ec2.reboot_instances(InstanceIds=[instance_id])
+        print(f"Successfully rebooted instance {instance_id}")
+        return True, f"Instance {instance_id} rebooted successfully."
+    except Exception as e:
+        print(f"Error rebooting instance: {str(e)}")
+        return False, f"Error rebooting instance: {str(e)}"
+    
+def available_zones(request):
+    ec2 = init_ec2()
+    if not ec2:
+        return render(request, "error.html", {"message": "AWS 자격 증명이 없거나 잘못되었습니다."})
+
+    try:
+        response = ec2.describe_availability_zones()
+        zones = [
+            {
+                "zone_id": zone["ZoneId"],
+                "region": zone["RegionName"],
+                "zone_name": zone["ZoneName"]
+            }
+            for zone in response.get("AvailabilityZones", [])
+        ]
+        return render(request, "ec2_manager/available_zones.html", {"zones": zones})
+    except Exception as e:
+        return render(request, "error.html", {"message": f"가용 영역 조회 중 오류 발생: {str(e)}"})
+
+def available_regions(request):
+    ec2 = init_ec2()
+    if not ec2:
+        return render(request, "error.html", {"message": "AWS 자격 증명이 없거나 잘못되었습니다."})
+
+    try:
+        response = ec2.describe_regions()
+        regions = [
+            {
+                "region_name": region["RegionName"],
+                "endpoint": region["Endpoint"]
+            }
+            for region in response["Regions"]
+        ]
+        return render(request, "ec2_manager/available_regions.html", {"regions": regions})
+    except Exception as e:
+        return render(request, "error.html", {"message": f"리전 조회 중 오류 발생: {str(e)}"})
+
+def create_and_list_images(request):
+    ec2 = init_ec2()
+    if not ec2:
+        return render(request, "error.html", {"message": "AWS 자격 증명이 없거나 잘못되었습니다."})
+
+    # 이미지 조회
+    try:
+        response = ec2.describe_images(Filters=[{"Name": "name", "Values": ["aws-htcondor-slave"]}])
+        images = [
+            {
+                "image_id": image["ImageId"],
+                "name": image.get("Name", "N/A"),
+                "owner": image.get("OwnerId", "N/A")
+            }
+            for image in response.get("Images", [])
+        ]
+    except Exception as e:
+        return render(request, "error.html", {"message": f"이미지 조회 중 오류 발생: {str(e)}"})
+
+    # 인스턴스 생성
+    if request.method == "POST":
+        ami_id = request.POST.get("ami_id")
+        try:
+            response = ec2.run_instances(
+                ImageId=ami_id,
+                InstanceType="t2.micro",
+                MinCount=1,
+                MaxCount=1
+            )
+            instance_id = response["Instances"][0]["InstanceId"]
+            # 생성된 인스턴스 ID를 성공적으로 전달
+            return render(request, "success.html", {"message": f"인스턴스가 성공적으로 생성되었습니다! 인스턴스 ID: {instance_id}"})
+        except Exception as e:
+            # 인스턴스 생성 오류에 대한 세부 정보를 반환
+            return render(request, "error.html", {"message": f"인스턴스 생성 중 오류 발생: {str(e)}"})
+
+    return render(request, "ec2_manager/create_and_list_images.html", {"images": images})
+
+

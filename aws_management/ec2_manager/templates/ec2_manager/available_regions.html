@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS 리전 목록</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">AWS 리전 목록</h1>
+
+        {% if regions %}
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th scope="col">리전 이름</th>
+                        <th scope="col">엔드포인트</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for region in regions %}
+                        <tr>
+                            <td>{{ region.region_name }}</td>
+                            <td>{{ region.endpoint }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center">리전 정보가 없습니다.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-warning">
+                리전 정보를 불러오는 데 실패했습니다.
+            </div>
+        {% endif %}
+
+        <a href="{% url 'ec2_operations' %}" class="btn btn-primary mt-4">EC2 인스턴스 관리 페이지로 돌아가기</a>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

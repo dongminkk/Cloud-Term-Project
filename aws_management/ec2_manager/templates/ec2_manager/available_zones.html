@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS 가용 영역 목록</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">AWS 가용 영역 목록</h1>
+
+        {% if zones %}
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th scope="col">가용 영역 ID</th>
+                        <th scope="col">리전 이름</th>
+                        <th scope="col">가용 영역 이름</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for zone in zones %}
+                        <tr>
+                            <td>{{ zone.zone_id }}</td>
+                            <td>{{ zone.region }}</td>
+                            <td>{{ zone.zone_name }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">가용 영역 정보가 없습니다.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-warning">
+                가용 영역 정보를 불러오는 데 실패했습니다.
+            </div>
+        {% endif %}
+
+        <a href="{% url 'ec2_operations' %}" class="btn btn-primary mt-4">EC2 인스턴스 관리 페이지로 돌아가기</a>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
