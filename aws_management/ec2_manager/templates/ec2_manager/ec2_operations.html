@@ -16,14 +16,14 @@
             </div>
         {% endif %}
 
-        <!-- 네비게이션 메뉴 -->
+       
         <div class="list-group mb-4">
-            <a href="{% url 'create_and_list_images' %}" class="list-group-item list-group-item-action">인스턴스 이미지조회 생성</a>
+            <a href="{% url 'create_and_list_images' %}" class="list-group-item list-group-item-action">인스턴스 이미지 조회 생성</a>
             <a href="{% url 'available_zones' %}" class="list-group-item list-group-item-action">Available Zones 조회</a>
             <a href="{% url 'available_regions' %}" class="list-group-item list-group-item-action">Available Regions 조회</a>
         </div>
 
-        <!-- 작업 실행 -->
+        
         <div class="card mb-4">
             <div class="card-header">
                 <h3 class="card-title">작업 실행</h3>
@@ -32,22 +32,24 @@
                 <form method="POST">
                     {% csrf_token %}
 
-                    <!-- 작업 선택 -->
+                    
                     <div class="mb-3">
                         <label for="action" class="form-label">작업 선택</label>
                         <select class="form-select" id="action" name="action" required onchange="toggleFields(this.value)">
                             <option value="start">시작</option>
                             <option value="stop">중지</option>
+                            <option value="reboot">리부트</option>
                             <option value="terminate">종료(삭제)</option>
                             <option value="status">상태 조회</option>
                             <option value="tag">태그 추가</option>
                             <option value="monitor">모니터링 시작</option>
                             <option value="unmonitor">모니터링 중지</option>
                             <option value="allocate_ip">Elastic IP 할당</option>
+                            <option value="condor_status">Condor 상태 조회</option>
                         </select>
                     </div>
 
-                    <!-- 인스턴스 선택 -->
+                   
                     <div class="mb-3">
                         <label for="instance_id" class="form-label">인스턴스 선택</label>
                         <select class="form-select" id="instance_id" name="instance_id" required>
@@ -60,7 +62,7 @@
                         </select>
                     </div>
 
-                    <!-- 태그 필드 -->
+                    
                     <div id="tag_fields" style="display: none;">
                         <div class="mb-3">
                             <label for="tag_key" class="form-label">태그 키</label>
@@ -77,8 +79,8 @@
             </div>
         </div>
 
-        <!-- 인스턴스 목록 -->
-        <div class="card">
+        
+        <div class="card mb-4">
             <div class="card-header">
                 <h3 class="card-title">인스턴스 목록</h3>
             </div>
@@ -123,18 +125,32 @@
                 </table>
             </div>
         </div>
-    </div>
+
+        
+        {% if condor_output %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title">Condor 상태 출력 결과</h3>
+                </div>
+                <div class="card-body">
+                    <pre>{{ condor_output }}</pre>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">Condor 상태 조회.</div>
+        {% endif %}
+    
 
     <script>
-        // 작업에 따라 입력 필드를 동적으로 표시/숨김 처리
+       
         function toggleFields(action) {
             const tagFields = document.getElementById('tag_fields');
 
-            // 기본적으로 모두 표시하지 않음
+           
             tagFields.style.display = 'none';
 
             if (action === 'tag') {
-                tagFields.style.display = 'block'; // 태그 추가 시 태그 입력 필드 표시
+                tagFields.style.display = 'block'; 
             }
         }
     </script>
