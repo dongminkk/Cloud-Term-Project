@@ -58,8 +58,6 @@ def ec2_operations(request):
         elif action == "terminate":
             success, msg = terminate_instance(ec2, instance_id)
             message = msg
-        elif action == "status":
-            describe_instance_status(ec2, instance_id)
         elif action == "tag":
             tag_instance(ec2, instance_id, tag_key, tag_value)
         elif action == "monitor":
@@ -67,7 +65,7 @@ def ec2_operations(request):
         elif action == "unmonitor":
             unmonitor_instance(ec2, instance_id)
         elif action == "allocate_ip":
-            ip = allocate_elastic_ip(ec2)
+            ip = allocate_and_associate_elastic_ip(ec2)
             message = f"Elastic IP: {ip}"
         elif action == "reboot":  
             success, msg = reboot_instance(ec2, instance_id)
@@ -85,10 +83,6 @@ def ec2_operations(request):
     })
 
 
-
-
-
-
 def terminate_instance(ec2, instance_id):
     print(f"Terminating instance {instance_id}...")
     try:
@@ -99,25 +93,6 @@ def terminate_instance(ec2, instance_id):
         print(f"Error terminating instance: {str(e)}")
         return False, f"Error terminating instance: {str(e)}"
 
-def describe_instance_status(ec2, instance_id):
-    print(f"Describing status of instance {instance_id}...")
-    try:
-        response = ec2.describe_instance_status(InstanceIds=[instance_id])
-        statuses = response.get('InstanceStatuses', [])
-        if statuses:
-            status_messages = [
-                f"Instance {instance_id}:"
-                f"\n  Status: {status['InstanceState']['Name']}"
-                f"\n  System Status: {status['SystemStatus']['Status']}"
-                f"\n  Instance Status: {status['InstanceStatus']['Status']}"
-                for status in statuses
-            ]
-            return "\n".join(status_messages)
-        else:
-            return f"Instance {instance_id} has no status information available."
-    except Exception as e:
-        print(f"Error describing instance status: {str(e)}")
-        return f"Error describing instance status: {str(e)}"
 
 def tag_instance(ec2, instance_id, tag_key, tag_value):
     print(f"Tagging instance {instance_id} with {tag_key}: {tag_value}...")
@@ -131,30 +106,55 @@ def tag_instance(ec2, instance_id, tag_key, tag_value):
         print(f"Error tagging instance: {str(e)}")
 
 def monitor_instance(ec2, instance_id):
-    print(f"Monitoring instance {instance_id}...")
+
+    print(f"Ensuring CloudWatch basic monitoring for instance {instance_id}...")
     try:
-        ec2.monitor_instances(InstanceIds=[instance_id])
-        print(f"Successfully started monitoring instance {instance_id}")
+        response = ec2.describe_instance_status(InstanceIds=[instance_id])
+        
+        if not response["InstanceStatuses"]:
+            print("인스턴스 상태 정보 없음")
+            return
+
+        instance_status = response["InstanceStatuses"][0]
+        monitoring_status = instance_status.get("Monitoring", {}).get("State", "disabled")
+        
+        if monitoring_status == "enabled":
+            print("기본 CloudWatch 모니터링은 이미 활성화되어 있습니다.")
+        else:
+            ec2.monitor_instances(InstanceIds=[instance_id])
+            print("CloudWatch 기본 모니터링 활성화 완료")
+            
     except Exception as e:
-        print(f"Error starting monitoring: {str(e)}")
+        print(f"Error enabling default CloudWatch monitoring: {str(e)}")
 
 def unmonitor_instance(ec2, instance_id):
-    print(f"Unmonitoring instance {instance_id}...")
+
+    print(f"Disabling CloudWatch monitoring for instance {instance_id}...")
     try:
         ec2.unmonitor_instances(InstanceIds=[instance_id])
         print(f"Successfully stopped monitoring instance {instance_id}")
     except Exception as e:
         print(f"Error stopping monitoring: {str(e)}")
 
-def allocate_elastic_ip(ec2):
-    print("Allocating Elastic IP...")
+def allocate_and_associate_elastic_ip(ec2, instance_id):
+    print("Allocating and associating Elastic IP...")
     try:
         allocation = ec2.allocate_address(Domain='vpc')
-        print(f"Elastic IP allocated: {allocation['PublicIp']}")
-        return allocation['PublicIp']
+        elastic_ip = allocation['PublicIp']
+        allocation_id = allocation['AllocationId']
+        print(f"Elastic IP allocated: {elastic_ip} (Allocation ID: {allocation_id})")
+        
+        response = ec2.associate_address(
+            InstanceId=instance_id,
+            AllocationId=allocation_id
+        )
+        association_id = response.get("AssociationId")
+        print(f"Elastic IP {elastic_ip} associated with instance {instance_id}. Association ID: {association_id}")
+        
+        return True, f"Elastic IP {elastic_ip} successfully allocated and associated with instance {instance_id}."
     except Exception as e:
-        print(f"Error allocating Elastic IP: {str(e)}")
-        return f"Error allocating Elastic IP: {str(e)}"
+        print(f"Error allocating or associating Elastic IP: {str(e)}")
+        return False, f"Error allocating or associating Elastic IP: {str(e)}"
 
 def start_instance(ec2, instance_id):
     print(f"Starting instance {instance_id}...")
