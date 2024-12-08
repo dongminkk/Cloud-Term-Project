@@ -6,4 +6,6 @@ urlpatterns = [
     path('available-zones/', views.available_zones, name='available_zones'),
     path('available-regions/', views.available_regions, name='available_regions'),
     path('create-instance/', views.create_and_list_images, name='create_and_list_images'),
+    path('get_usage_data/<str:instance_id>/', views.get_usage_data, name='get_usage_data'),
+    
 ]

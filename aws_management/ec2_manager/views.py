@@ -1,8 +1,11 @@
 from django.shortcuts import render
 import boto3
+from django.http import JsonResponse
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.conf import settings
+from datetime import datetime, timedelta
 import paramiko
+import logging
 
 def init_ec2():
     try:
@@ -60,10 +63,6 @@ def ec2_operations(request):
             message = msg
         elif action == "tag":
             tag_instance(ec2, instance_id, tag_key, tag_value)
-        elif action == "monitor":
-            monitor_instance(ec2, instance_id)
-        elif action == "unmonitor":
-            unmonitor_instance(ec2, instance_id)
         elif action == "allocate_ip":
             ip = allocate_and_associate_elastic_ip(ec2)
             message = f"Elastic IP: {ip}"
@@ -105,36 +104,6 @@ def tag_instance(ec2, instance_id, tag_key, tag_value):
     except Exception as e:
         print(f"Error tagging instance: {str(e)}")
 
-def monitor_instance(ec2, instance_id):
-
-    print(f"Ensuring CloudWatch basic monitoring for instance {instance_id}...")
-    try:
-        response = ec2.describe_instance_status(InstanceIds=[instance_id])
-        
-        if not response["InstanceStatuses"]:
-            print("인스턴스 상태 정보 없음")
-            return
-
-        instance_status = response["InstanceStatuses"][0]
-        monitoring_status = instance_status.get("Monitoring", {}).get("State", "disabled")
-        
-        if monitoring_status == "enabled":
-            print("기본 CloudWatch 모니터링은 이미 활성화되어 있습니다.")
-        else:
-            ec2.monitor_instances(InstanceIds=[instance_id])
-            print("CloudWatch 기본 모니터링 활성화 완료")
-            
-    except Exception as e:
-        print(f"Error enabling default CloudWatch monitoring: {str(e)}")
-
-def unmonitor_instance(ec2, instance_id):
-
-    print(f"Disabling CloudWatch monitoring for instance {instance_id}...")
-    try:
-        ec2.unmonitor_instances(InstanceIds=[instance_id])
-        print(f"Successfully stopped monitoring instance {instance_id}")
-    except Exception as e:
-        print(f"Error stopping monitoring: {str(e)}")
 
 def allocate_and_associate_elastic_ip(ec2, instance_id):
     print("Allocating and associating Elastic IP...")
@@ -303,3 +272,109 @@ def condor_status_instance(ec2, instance_id):
     except Exception as e:
         return False, f"condor_status 실행 중 오류 발생: {str(e)}"
 
+logger = logging.getLogger(__name__)
+
+def get_usage_data(request, instance_id):
+    try:
+        # CloudWatch에서 메트릭 데이터 가져오기
+        client = boto3.client('cloudwatch')
+        end_time = datetime.utcnow()
+        start_time = end_time - timedelta(hours=6)
+
+        # 여러 메트릭을 가져옴
+        response = client.get_metric_data(
+            MetricDataQueries=[
+                {
+                    'Id': 'cpu_usage',
+                    'MetricStat': {
+                        'Metric': {
+                            'Namespace': 'AWS/EC2',
+                            'MetricName': 'CPUUtilization',
+                            'Dimensions': [{'Name': 'InstanceId', 'Value': instance_id}]
+                        },
+                        'Period': 300,
+                        'Stat': 'Average',
+                    },
+                    'ReturnData': True,
+                },
+                {
+                    'Id': 'network_in',
+                    'MetricStat': {
+                        'Metric': {
+                            'Namespace': 'AWS/EC2',
+                            'MetricName': 'NetworkIn',
+                            'Dimensions': [{'Name': 'InstanceId', 'Value': instance_id}]
+                        },
+                        'Period': 300,
+                        'Stat': 'Sum',
+                    },
+                    'ReturnData': True,
+                },
+                {
+                    'Id': 'network_out',
+                    'MetricStat': {
+                        'Metric': {
+                            'Namespace': 'AWS/EC2',
+                            'MetricName': 'NetworkOut',
+                            'Dimensions': [{'Name': 'InstanceId', 'Value': instance_id}]
+                        },
+                        'Period': 300,
+                        'Stat': 'Sum',
+                    },
+                    'ReturnData': True,
+                },
+                {
+                    'Id': 'disk_read',
+                    'MetricStat': {
+                        'Metric': {
+                            'Namespace': 'AWS/EC2',
+                            'MetricName': 'DiskReadBytes',
+                            'Dimensions': [{'Name': 'InstanceId', 'Value': instance_id}]
+                        },
+                        'Period': 300,
+                        'Stat': 'Sum',
+                    },
+                    'ReturnData': True,
+                },
+                {
+                    'Id': 'disk_write',
+                    'MetricStat': {
+                        'Metric': {
+                            'Namespace': 'AWS/EC2',
+                            'MetricName': 'DiskWriteBytes',
+                            'Dimensions': [{'Name': 'InstanceId', 'Value': instance_id}]
+                        },
+                        'Period': 300,
+                        'Stat': 'Sum',
+                    },
+                    'ReturnData': True,
+                }
+            ],
+            StartTime=start_time,
+            EndTime=end_time,
+        )
+
+        # 데이터 가공
+        cpu_timestamps = response['MetricDataResults'][0].get('Timestamps', [])
+        cpu_values = response['MetricDataResults'][0].get('Values', [])
+        
+        network_in_values = response['MetricDataResults'][1].get('Values', [])
+        network_out_values = response['MetricDataResults'][2].get('Values', [])
+        disk_read_values = response['MetricDataResults'][3].get('Values', [])
+        disk_write_values = response['MetricDataResults'][4].get('Values', [])
+
+        # 타임스탬프 정리
+        timestamps = [ts.isoformat() for ts in cpu_timestamps]  # 공통 타임스탬프 처리
+
+        return JsonResponse({
+            'timestamps': timestamps,
+            'cpu_usage': cpu_values,
+            'network_in': network_in_values,
+            'network_out': network_out_values,
+            'disk_read': disk_read_values,
+            'disk_write': disk_write_values,
+        }, safe=False)
+
+    except Exception as e:
+        logger.error(f"Failed to fetch usage data for instance {instance_id}: {e}")
+        return JsonResponse({'error': 'Failed to fetch usage data. Please try again later.'}, status=500)

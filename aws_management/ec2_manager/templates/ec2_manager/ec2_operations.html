@@ -5,8 +5,167 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EC2 인스턴스 관리</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        canvas {
+            max-height: 400px;
+            max-width: 100%;
+        }
+        .condor-output {
+            background-color: #333333;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
+    
+    <div id="graphModal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">사용률 그래프</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">데이터 로딩 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script>
+        
+        function resetModal() {
+            const modalBody = document.querySelector('#graphModal .modal-body');
+            modalBody.innerHTML = '<div class="text-center">데이터 로딩 중...</div>';
+        }
+    
+        const graphModal = document.getElementById('graphModal');
+        graphModal.addEventListener('hidden.bs.modal', resetModal);
+    
+        
+        async function showUsageGraph(instanceId) {
+            const modalBody = document.querySelector('#graphModal .modal-body');
+            try {
+                const response = await fetch(`/ec2/get_usage_data/${instanceId}/`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+    
+                
+                const ctx = document.createElement('canvas');
+                ctx.id = 'usageGraph';
+                ctx.width = 800;
+                ctx.height = 400;
+                modalBody.innerHTML = '';
+                modalBody.appendChild(ctx);
+    
+    
+                new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: data.timestamps,
+                        datasets: [
+                        {
+                            label: 'CPU 사용률',
+                            data: data.cpu_usage,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                        },
+                        {
+                            label: 'Network In',
+                            data: data.network_in,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 2,
+                        },
+                        {
+                            label: 'Network Out',
+                            data: data.network_out,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderWidth: 2,
+                        },
+                        {
+                            label: 'Disk Read',
+                            data: data.disk_read,
+                            borderColor: 'rgba(255, 206, 86, 1)',
+                            backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                            borderWidth: 2,
+                        },
+                        {
+                            label: 'Disk Write',
+                            data: data.disk_write,
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderWidth: 2,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'minute' },
+                            title: {
+                                display: true,
+                                text: '시간'
+                            },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Usage'
+                            }
+                        }
+                    }
+                }
+            });
+    
+                // 모달 표시
+            new bootstrap.Modal(document.getElementById('graphModal')).show();
+        } catch (error) {
+                console.error('Error fetching usage data:', error);
+                modalBody.innerHTML = '<div class="alert alert-danger">데이터를 불러오는 데 실패했습니다.</div>';
+        }
+    }
+
+        // 태그 필드 표시/숨김
+        function toggleFields(action) {
+            const tagFields = document.getElementById('tag_fields');
+            tagFields.style.display = action === 'tag' ? 'block' : 'none';
+        }
+
+        // 태그 필드 입력 검증
+        document.querySelector('form').addEventListener('submit', (e) => {
+            const action = document.getElementById('action').value;
+            if (action === 'tag') {
+                const tagKey = document.getElementById('tag_key').value.trim();
+                const tagValue = document.getElementById('tag_value').value.trim();
+
+                if (!tagKey || !tagValue) {
+                    alert('태그 키와 값을 모두 입력하세요.');
+                    e.preventDefault();
+                }
+            }
+        });
+    </script>
+
     <div class="container mt-5">
         <h1 class="mb-4">EC2 인스턴스 관리</h1>
 
@@ -16,14 +175,14 @@
             </div>
         {% endif %}
 
-       
+        <!-- 주요 메뉴 -->
         <div class="list-group mb-4">
             <a href="{% url 'create_and_list_images' %}" class="list-group-item list-group-item-action">인스턴스 이미지 조회 생성</a>
             <a href="{% url 'available_zones' %}" class="list-group-item list-group-item-action">Available Zones 조회</a>
             <a href="{% url 'available_regions' %}" class="list-group-item list-group-item-action">Available Regions 조회</a>
         </div>
 
-        
+        <!-- 작업 실행 -->
         <div class="card mb-4">
             <div class="card-header">
                 <h3 class="card-title">작업 실행</h3>
@@ -31,8 +190,6 @@
             <div class="card-body">
                 <form method="POST">
                     {% csrf_token %}
-
-                    
                     <div class="mb-3">
                         <label for="action" class="form-label">작업 선택</label>
                         <select class="form-select" id="action" name="action" required onchange="toggleFields(this.value)">
@@ -41,14 +198,10 @@
                             <option value="reboot">리부트</option>
                             <option value="terminate">종료(삭제)</option>
                             <option value="tag">태그 추가</option>
-                            <option value="monitor">모니터링 시작</option>
-                            <option value="unmonitor">모니터링 중지</option>
                             <option value="allocate_ip">Elastic IP 할당</option>
                             <option value="condor_status">Condor 상태 조회</option>
                         </select>
                     </div>
-
-                   
                     <div class="mb-3">
                         <label for="instance_id" class="form-label">인스턴스 선택</label>
                         <select class="form-select" id="instance_id" name="instance_id" required>
@@ -60,8 +213,6 @@
                             {% endfor %}
                         </select>
                     </div>
-
-                    
                     <div id="tag_fields" style="display: none;">
                         <div class="mb-3">
                             <label for="tag_key" class="form-label">태그 키</label>
@@ -72,13 +223,12 @@
                             <input type="text" class="form-control" id="tag_value" name="tag_value" placeholder="예: MyInstance">
                         </div>
                     </div>
-
                     <button type="submit" class="btn btn-primary">작업 실행</button>
                 </form>
             </div>
         </div>
 
-        
+        <!-- 인스턴스 목록 -->
         <div class="card mb-4">
             <div class="card-header">
                 <h3 class="card-title">인스턴스 목록</h3>
@@ -87,14 +237,15 @@
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            <th scope="col">인스턴스 ID</th>
-                            <th scope="col">타입</th>
-                            <th scope="col">상태</th>
-                            <th scope="col">AMI</th>
-                            <th scope="col">퍼블릭 IP</th>
-                            <th scope="col">프라이빗 IP</th>
-                            <th scope="col">시작 시간</th>
-                            <th scope="col">태그</th>
+                            <th>인스턴스 ID</th>
+                            <th>타입</th>
+                            <th>상태</th>
+                            <th>AMI</th>
+                            <th>퍼블릭 IP</th>
+                            <th>프라이빗 IP</th>
+                            <th>시작 시간</th>
+                            <th>태그</th>
+                            <th>작업</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -108,16 +259,21 @@
                                 <td>{{ instance.private_ip }}</td>
                                 <td>{{ instance.launch_time }}</td>
                                 <td>
-                                    {% for key, value in instance.tags.items %}
-                                        <div><strong>{{ key }}:</strong> {{ value }}</div>
-                                    {% empty %}
+                                    {% if instance.tags %}
+                                        {% for key, value in instance.tags.items %}
+                                            <div><strong>{{ key }}:</strong> {{ value }}</div>
+                                        {% endfor %}
+                                    {% else %}
                                         <div>태그 없음</div>
-                                    {% endfor %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="showUsageGraph('{{ instance.id }}')">사용률 그래프</button>
                                 </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="8" class="text-center">현재 활성화된 인스턴스가 없습니다.</td>
+                                <td colspan="9" class="text-center">현재 활성화된 인스턴스가 없습니다.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -132,27 +288,12 @@
                     <h3 class="card-title">Condor 상태 출력 결과</h3>
                 </div>
                 <div class="card-body">
-                    <pre>{{ condor_output }}</pre>
+                    <pre class="condor-output">{{ condor_output }}</pre>
                 </div>
             </div>
         {% else %}
             <div class="alert alert-info">Condor 상태 조회.</div>
         {% endif %}
-    
-
-    <script>
-       
-        function toggleFields(action) {
-            const tagFields = document.getElementById('tag_fields');
-
-           
-            tagFields.style.display = 'none';
-
-            if (action === 'tag') {
-                tagFields.style.display = 'block'; 
-            }
-        }
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    </div>
 </body>
 </html>
