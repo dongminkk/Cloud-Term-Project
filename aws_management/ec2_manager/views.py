@@ -276,12 +276,12 @@ logger = logging.getLogger(__name__)
 
 def get_usage_data(request, instance_id):
     try:
-        # CloudWatch에서 메트릭 데이터 가져오기
+        
         client = boto3.client('cloudwatch')
         end_time = datetime.utcnow()
         start_time = end_time - timedelta(hours=6)
 
-        # 여러 메트릭을 가져옴
+        
         response = client.get_metric_data(
             MetricDataQueries=[
                 {
@@ -354,7 +354,7 @@ def get_usage_data(request, instance_id):
             EndTime=end_time,
         )
 
-        # 데이터 가공
+        
         cpu_timestamps = response['MetricDataResults'][0].get('Timestamps', [])
         cpu_values = response['MetricDataResults'][0].get('Values', [])
         
@@ -363,8 +363,8 @@ def get_usage_data(request, instance_id):
         disk_read_values = response['MetricDataResults'][3].get('Values', [])
         disk_write_values = response['MetricDataResults'][4].get('Values', [])
 
-        # 타임스탬프 정리
-        timestamps = [ts.isoformat() for ts in cpu_timestamps]  # 공통 타임스탬프 처리
+        
+        timestamps = [ts.isoformat() for ts in cpu_timestamps] 
 
         return JsonResponse({
             'timestamps': timestamps,

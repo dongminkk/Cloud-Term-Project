@@ -137,7 +137,7 @@
                 }
             });
     
-                // 모달 표시
+            
             new bootstrap.Modal(document.getElementById('graphModal')).show();
         } catch (error) {
                 console.error('Error fetching usage data:', error);
@@ -145,13 +145,13 @@
         }
     }
 
-        // 태그 필드 표시/숨김
+        
         function toggleFields(action) {
             const tagFields = document.getElementById('tag_fields');
             tagFields.style.display = action === 'tag' ? 'block' : 'none';
         }
 
-        // 태그 필드 입력 검증
+        
         document.querySelector('form').addEventListener('submit', (e) => {
             const action = document.getElementById('action').value;
             if (action === 'tag') {
@@ -175,14 +175,14 @@
             </div>
         {% endif %}
 
-        <!-- 주요 메뉴 -->
+        
         <div class="list-group mb-4">
             <a href="{% url 'create_and_list_images' %}" class="list-group-item list-group-item-action">인스턴스 이미지 조회 생성</a>
             <a href="{% url 'available_zones' %}" class="list-group-item list-group-item-action">Available Zones 조회</a>
             <a href="{% url 'available_regions' %}" class="list-group-item list-group-item-action">Available Regions 조회</a>
         </div>
 
-        <!-- 작업 실행 -->
+        
         <div class="card mb-4">
             <div class="card-header">
                 <h3 class="card-title">작업 실행</h3>
@@ -228,7 +228,7 @@
             </div>
         </div>
 
-        <!-- 인스턴스 목록 -->
+        
         <div class="card mb-4">
             <div class="card-header">
                 <h3 class="card-title">인스턴스 목록</h3>
